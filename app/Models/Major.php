@@ -14,13 +14,27 @@ class Major extends Model
         'description',
     ];
 
+     /**
+     * Get the students in this major.
+     */
     public function students()
     {
         return $this->hasMany(Student::class, 'major_id');
     }
 
+    /**
+     * Get the doctors in this major.
+     */
     public function doctors()
     {
         return $this->hasMany(Doctor::class, 'major_id');
+    }
+
+    /**
+     * Get the courses that belong to this major.
+     */
+    public function courses()
+    {
+        return $this->belongsToMany(Course::class, 'major_courses', 'major_id', 'course_id');
     }
 }

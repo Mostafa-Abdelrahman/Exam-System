@@ -66,4 +66,62 @@ class User extends Authenticatable
     {
         return $this->role === $role;
     }
+
+    /**
+     * Get the password for the user.
+     *
+     * @return string
+     */
+    public function getAuthPassword()
+    {
+        return $this->hashed_password;
+    }
+
+    /**
+     * Get the student record associated with the user.
+     */
+    public function student()
+    {
+        return $this->hasOne(Student::class, 'user_id');
+    }
+
+    /**
+     * Get the doctor record associated with the user.
+     */
+    public function doctor()
+    {
+        return $this->hasOne(Doctor::class, 'user_id');
+    }
+
+    /**
+     * Check if the user is an admin.
+     */
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
+
+    /**
+     * Check if the user is a doctor.
+     */
+    public function isDoctor()
+    {
+        return $this->role === 'doctor';
+    }
+
+    /**
+     * Check if the user is a student.
+     */
+    public function isStudent()
+    {
+        return $this->role === 'student';
+    }
+
+    /**
+     * Get the exams created by this user (if doctor).
+     */
+    public function createdExams()
+    {
+        return $this->hasMany(Exam::class, 'created_by');
+    }
 }

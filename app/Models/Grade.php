@@ -16,6 +16,16 @@ class Grade extends Model
         'graded_at',
     ];
 
+        /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'grade' => 'decimal:2',
+        'graded_at' => 'datetime',
+    ];
+
     public function student()
     {
         return $this->belongsTo(Student::class);
@@ -24,5 +34,24 @@ class Grade extends Model
     public function exam()
     {
         return $this->belongsTo(Exam::class);
+    }
+       /**
+     * Determine the letter grade based on the numeric grade.
+     */
+    public function getLetterGradeAttribute()
+    {
+        if ($this->grade >= 90) return 'A';
+        if ($this->grade >= 80) return 'B';
+        if ($this->grade >= 70) return 'C';
+        if ($this->grade >= 60) return 'D';
+        return 'F';
+    }
+
+    /**
+     * Determine if this is a passing grade.
+     */
+    public function getIsPassingAttribute()
+    {
+        return $this->grade >= 60;
     }
 }
