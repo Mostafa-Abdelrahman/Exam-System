@@ -27,9 +27,11 @@ class StatsController extends Controller
             ->pluck('count', 'role')
             ->toArray();
             
-        // Get course counts
-        $courseCount = Course::count();
-        
+        // Get course counts with details
+        $courses = Course::select('id', 'course_name', 'course_code')
+            ->withCount(['students', 'doctors', 'exams'])
+            ->get();
+            
         // Get exam counts by status
         $examCounts = Exam::select('status', DB::raw('count(*) as count'))
             ->groupBy('status')
@@ -37,31 +39,41 @@ class StatsController extends Controller
             ->pluck('count', 'status')
             ->toArray();
             
-        // Get major counts
-        $majorCount = Major::count();
-        
-        // Get recent exams
-        $recentExams = Exam::with(['course'])
+        // Get major counts with details
+        $majors = Major::select('id', 'major_name')
+            ->withCount(['students', 'doctors', 'courses'])
+            ->get();
+            
+        // Get recent exams with course details
+        $recentExams = Exam::with(['course:id,course_name,course_code'])
             ->orderBy('created_at', 'desc')
             ->limit(5)
             ->get();
             
         // Get course enrollment statistics
-        $courseEnrollments = Course::select('courses.course_name', DB::raw('count(student_courses.student_id) as student_count'))
-            ->leftJoin('student_courses', 'courses.course_id', '=', 'student_courses.course_id')
-            ->groupBy('courses.course_id', 'courses.course_name')
-            ->orderBy('student_count', 'desc')
+        $courseEnrollments = Course::select('id', 'course_name', 'course_code')
+            ->withCount('students')
+            ->orderBy('students_count', 'desc')
             ->limit(10)
             ->get();
             
         // Get average grades by course
-        $averageGrades = Course::select('courses.course_name', DB::raw('avg(grades.grade) as average_grade'))
-            ->leftJoin('exams', 'courses.course_id', '=', 'exams.course_id')
-            ->leftJoin('grades', 'exams.exam_id', '=', 'grades.exam_id')
-            ->groupBy('courses.course_id', 'courses.course_name')
-            ->having(DB::raw('avg(grades.grade)'), '>', 0)
-            ->orderBy('average_grade', 'desc')
-            ->get();
+        $averageGrades = Course::select('id', 'course_name', 'course_code')
+            ->with(['exams.grades' => function($query) {
+                $query->select('exam_id', DB::raw('AVG(grade) as average_grade'))
+                    ->groupBy('exam_id');
+            }])
+            ->get()
+            ->map(function($course) {
+                $average = $course->exams->flatMap->grades->avg('average_grade');
+                return [
+                    'course_name' => $course->course_name,
+                    'course_code' => $course->course_code,
+                    'average_grade' => $average ? round($average, 2) : 0
+                ];
+            })
+            ->sortByDesc('average_grade')
+            ->values();
             
         return response()->json([
             'users' => [
@@ -69,7 +81,8 @@ class StatsController extends Controller
                 'by_role' => $userCounts
             ],
             'courses' => [
-                'total' => $courseCount,
+                'total' => $courses->count(),
+                'details' => $courses,
                 'enrollments' => $courseEnrollments
             ],
             'exams' => [
@@ -78,7 +91,8 @@ class StatsController extends Controller
                 'recent' => $recentExams
             ],
             'majors' => [
-                'total' => $majorCount
+                'total' => $majors->count(),
+                'details' => $majors
             ],
             'academic' => [
                 'average_grades' => $averageGrades
